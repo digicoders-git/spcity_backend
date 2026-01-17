@@ -61,6 +61,7 @@ class AuthService {
             department: user.department,
             status: user.status
           }
+        }
       };
     } catch (error) {
       throw error;

@@ -6,7 +6,7 @@ require('dotenv').config();
 
 const connectDB = require('./config/db');
 
-// Import routes
+// Routes
 const authRoutes = require('./routes/auth');
 const associateRoutes = require('./routes/associates');
 const leadRoutes = require('./routes/leads');
@@ -20,32 +20,57 @@ const invoiceRoutes = require('./routes/invoices');
 
 const app = express();
 
-// Connect to database
+/* ================= DB ================= */
 connectDB();
 
-// CORS configuration - must be before other middleware
+/* ================= CORS (FINAL & SAFE) ================= */
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://sp-city.onrender.com',
+  'https://sp-city.vercel.app'
+];
+
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173', 'https://sp-city.onrender.com'],
+  origin: function (origin, callback) {
+    // allow server-to-server / postman
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Security middleware
+// 🔥 Preflight support
+app.options('*', cors());
+
+/* ================= SECURITY ================= */
 app.use(helmet());
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+/* ================= RATE LIMIT ================= */
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100
 });
-app.use(limiter);
+app.use(globalLimiter);
 
-// Body parser middleware
+// Invoice ke liye thoda relaxed limiter
+const invoiceLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300
+});
+
+/* ================= BODY PARSER ================= */
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Routes
+/* ================= ROUTES ================= */
 app.use('/api/auth', authRoutes);
 app.use('/api/associates', associateRoutes);
 app.use('/api/leads', leadRoutes);
@@ -55,37 +80,44 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/site-visits', siteVisitRoutes);
 app.use('/api/commissions', commissionRoutes);
-app.use('/api/invoices', invoiceRoutes);
 
-// Health check route
+// 🔥 Invoice route with relaxed limiter
+app.use('/api/invoices', invoiceLimiter, invoiceRoutes);
+
+/* ================= HEALTH CHECK ================= */
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
+  res.status(200).json({
+    success: true,
+    status: 'OK',
     message: 'SP City Backend API is running',
     timestamp: new Date().toISOString()
   });
 });
 
-// Error handling middleware
+/* ================= ERROR HANDLER ================= */
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ 
-    success: false, 
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+
+  res.status(500).json({
+    success: false,
+    message: 'Something went wrong',
+    error: process.env.NODE_ENV === 'development'
+      ? err.message
+      : 'Internal server error'
   });
 });
 
-// 404 handler
+/* ================= 404 ================= */
 app.use('*', (req, res) => {
-  res.status(404).json({ 
-    success: false, 
-    message: 'Route not found' 
+  res.status(404).json({
+    success: false,
+    message: 'Route not found'
   });
 });
 
+/* ================= SERVER ================= */
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });

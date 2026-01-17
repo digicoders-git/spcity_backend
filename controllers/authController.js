@@ -31,6 +31,34 @@ class AuthController {
     }
   }
 
+  // Register user
+  async register(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array()
+        });
+      }
+
+      const result = await authService.registerUser(req.body);
+
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+
+      res.status(201).json(result);
+    } catch (error) {
+      console.error('Register error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Server error during registration'
+      });
+    }
+  }
+
   // Get current user profile
   async getProfile(req, res) {
     try {

@@ -61,6 +61,61 @@ class AuthService {
             department: user.department,
             status: user.status
           }
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Register user
+  async registerUser(userData) {
+    try {
+      const { name, email, username, password, role, phone, department } = userData;
+
+      // Check if user exists
+      let user = await User.findOne({ 
+        $or: [{ email }, { username }] 
+      });
+
+      if (user) {
+        return {
+          success: false,
+          message: 'User already exists'
+        };
+      }
+
+      // Create user
+      user = await User.create({
+        name,
+        email,
+        username,
+        password,
+        role: role || 'associate',
+        phone,
+        department: department || 'Sales',
+        status: 'Active'
+      });
+
+      // Generate token
+      const token = jwt.sign(
+        { id: user._id, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      return {
+        success: true,
+        message: 'Registration successful',
+        data: {
+          token,
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            username: user.username,
+            role: user.role,
+            status: user.status
+          }
         }
       };
     } catch (error) {

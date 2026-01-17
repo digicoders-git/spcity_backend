@@ -13,6 +13,16 @@ router.post('/login', [
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
 ], authController.login);
 
+// @route   POST /api/auth/register
+// @desc    Register a new user (admin/associate)
+// @access  Public
+router.post('/register', [
+  body('name').notEmpty().withMessage('Name is required'),
+  body('email').isEmail().withMessage('Please include a valid email'),
+  body('username').notEmpty().withMessage('Username is required'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
+], authController.register);
+
 // @route   PUT /api/auth/profile
 // @desc    Update user profile
 // @access  Private

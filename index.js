@@ -16,6 +16,7 @@ const paymentRoutes = require('./routes/payments');
 const dashboardRoutes = require('./routes/dashboard');
 const siteVisitRoutes = require('./routes/siteVisits');
 const commissionRoutes = require('./routes/commissions');
+const invoiceRoutes = require('./routes/invoices');
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/site-visits', siteVisitRoutes);
 app.use('/api/commissions', commissionRoutes);
+app.use('/api/invoices', invoiceRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

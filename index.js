@@ -27,17 +27,17 @@ connectDB();
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
-  'https://spcity-adminpanel.vercel.app'
+  'https://spcity-adminpanel.vercel.app',
+  'https://spcity-adminpanel.vercel.app/'
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    // allow server-to-server / postman
     if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
+    if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
+      console.log('Blocked by CORS:', origin); // Log blocked origin for debugging
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -50,7 +50,9 @@ app.use(cors({
 app.options('*', cors());
 
 /* ================= SECURITY ================= */
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 /* ================= RATE LIMIT ================= */
 const globalLimiter = rateLimit({

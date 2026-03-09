@@ -3,41 +3,133 @@ const Payment = require('../models/Payment');
 const Project = require('../models/Project');
 const Withdrawal = require('../models/Withdrawal');
 
+const RANKS = [
+  { name: 'STAR', min: 0, max: 500000, rate: 5 },
+  { name: 'GOLD', min: 500000, max: 5000000, rate: 6 },
+  { name: 'PLATINUM', min: 4000000, max: 10000000, rate: 7 },
+  { name: 'RUBY', min: 10000000, max: 20000000, rate: 8 },
+  { name: 'EMERALD', min: 20000000, max: 50000000, rate: 9 },
+  { name: 'DIAMOND', min: 50000000, max: 100000000, rate: 10 },
+  { name: 'DOUBLE DIAMOND', min: 100000000, max: 150000000, rate: 11 },
+  { name: 'CROWN', min: 150000000, max: 200000000, rate: 12 },
+  { name: 'EX CROWN', min: 200000000, max: 300000000, rate: 13 },
+  { name: 'SUPER CROWN', min: 300000000, max: 500000000, rate: 14 },
+  { name: 'ROYAL CROWN', min: 500000000, max: Infinity, rate: 15 }
+];
+
+const getRankInfo = (sales) => {
+  for (let i = RANKS.length - 1; i >= 0; i--) {
+    if (sales >= RANKS[i].min) return RANKS[i];
+  }
+  return RANKS[0];
+};
+
 class CommissionService {
-  
-  // Generate commission when payment is received
+
+  // Update total sales and rank for associate and all ancestors
+  static async updateAssociateRank(associateId, saleAmount) {
+    try {
+      let currentId = associateId;
+      const User = require('../models/User');
+
+      while (currentId) {
+        const user = await User.findById(currentId);
+        if (!user || user.role !== 'associate') break;
+
+        // Update total sales
+        user.totalSales = (user.totalSales || 0) + saleAmount;
+
+        // Check and update rank
+        const newRankInfo = getRankInfo(user.totalSales);
+        user.rank = newRankInfo.name;
+
+        await user.save();
+
+        // Check for automated rewards (60:40 rule)
+        const rewardService = require('./rewardService');
+        await rewardService.processAutomatedRewards(user._id);
+
+        // Move up
+        currentId = user.createdBy;
+      }
+    } catch (error) {
+      console.error('Update Rank Error:', error);
+    }
+  }
+
+  // Generate commission when payment is received (Differential Rank Based)
   static async generateCommissionFromPayment(paymentId) {
     try {
       const payment = await Payment.findById(paymentId)
-        .populate('project')
-        .populate('associate');
+        .populate('project');
       
       if (!payment || payment.status !== 'Received') {
         return { success: false, message: 'Payment not found or not received' };
       }
 
-      // Check if commission already exists
-      const existingCommission = await Commission.findOne({ payment: paymentId });
-      if (existingCommission) {
-        return { success: false, message: 'Commission already generated for this payment' };
+      // 1. Update Sales and Ranks first (Team Sale logic)
+      await this.updateAssociateRank(payment.associate, payment.amount);
+
+      // 2. Check if any commission already exists
+      if (payment.commissionGenerated) {
+        return { success: false, message: 'Commissions already generated' };
       }
 
       const project = payment.project;
-      const commissionRate = project.commissionRate || 2; // Default 2%
-      const commissionAmount = (payment.amount * commissionRate) / 100;
+      const commissions = [];
+      let currentAssociateId = payment.associate;
+      let alreadyDistributedRate = 0;
+      let level = 1;
 
-      const commission = await Commission.create({
-        associate: payment.associate,
-        payment: paymentId,
-        project: project._id,
-        saleAmount: payment.amount,
-        commissionRate,
-        commissionAmount,
-        status: 'Earned'
-      });
+      // 3. Differential Commission Distribution
+      while (currentAssociateId && alreadyDistributedRate < 15) {
+        const currentAssociate = await require('../models/User').findById(currentAssociateId);
+        if (!currentAssociate || currentAssociate.role !== 'associate') break;
 
-      return { success: true, data: commission };
+        // Determine the rate: priority to custom commissionRate, fallback to rank-based rate
+        const rankInfo = getRankInfo(currentAssociate.totalSales);
+        let associateRate = rankInfo.rate;
+        let rankName = rankInfo.name;
+
+        if (currentAssociate.commissionRate > 0) {
+          associateRate = currentAssociate.commissionRate;
+          // Map rate back to rank name if it matches standard ranks
+          const standardRank = RANKS.find(r => r.rate === associateRate);
+          rankName = standardRank ? standardRank.name : 'CUSTOM';
+        }
+        
+        // Calculate gap/differential commission
+        if (associateRate > alreadyDistributedRate) {
+          const gapRate = associateRate - alreadyDistributedRate;
+          const commissionAmount = (payment.amount * gapRate) / 100;
+
+          const commission = await Commission.create({
+            associate: currentAssociateId,
+            payment: paymentId,
+            project: project._id,
+            saleAmount: payment.amount,
+            commissionRate: gapRate,
+            commissionAmount,
+            associateRank: rankName,
+            level,
+            status: 'Earned'
+          });
+
+          commissions.push(commission);
+          alreadyDistributedRate = associateRate; // Update distributed rate
+        }
+
+        currentAssociateId = currentAssociate.createdBy;
+        level++;
+      }
+
+      // Mark payment as commission generated
+      payment.commissionGenerated = true;
+      await payment.save();
+
+      return { success: true, count: commissions.length, data: commissions };
     } catch (error) {
+      console.error('Commission Generation Error:', error);
       return { success: false, message: error.message };
     }
   }
@@ -70,8 +162,8 @@ class CommissionService {
       const commissions = [];
       for (const payment of payments) {
         const result = await this.generateCommissionFromPayment(payment._id);
-        if (result.success) {
-          commissions.push(result.data);
+        if (result.success && Array.isArray(result.data)) {
+          commissions.push(...result.data);
         }
       }
 

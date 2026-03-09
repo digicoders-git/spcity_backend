@@ -1,15 +1,12 @@
 const cloudinary = require('cloudinary').v2;
+require('dotenv').config(); // Ensure dotenv is loaded before config
 
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
+  cloud_name: (process.env.CLOUDINARY_CLOUD_NAME || '').trim(),
+  api_key: (process.env.CLOUDINARY_API_KEY || '').trim(),
+  api_secret: (process.env.CLOUDINARY_API_SECRET || '').trim()
 });
 
-console.log('☁️ Cloudinary Config:', {
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY ? 'Set' : 'Missing',
-  api_secret: process.env.CLOUDINARY_API_SECRET ? 'Set' : 'Missing'
-});
+console.log('☁️ Cloudinary Configured for:', cloudinary.config().cloud_name);
 
 module.exports = cloudinary;

@@ -6,16 +6,29 @@ const cloudinary = require('../config/cloudinary');
  */
 const uploadImage = (file, folder = 'sp-city/projects') => {
   return new Promise((resolve, reject) => {
-    cloudinary.uploader.upload_stream(
+    console.log('☁️ Cloudinary Upload started for folder:', folder);
+    const config = cloudinary.config();
+    if (!config.cloud_name) {
+      console.error('❌ Cloudinary cloud_name is missing in config!');
+      return reject(new Error('Cloudinary cloud_name is missing'));
+    }
+
+    const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder,
         resource_type: 'image'
       },
       (error, result) => {
-        if (error) return reject(error);
+        if (error) {
+          console.error('❌ Cloudinary Stream Error:', error);
+          return reject(error);
+        }
+        console.log('✅ Image uploaded successfully:', result.secure_url);
         resolve(result.secure_url);
       }
-    ).end(file.buffer);
+    );
+    
+    uploadStream.end(file.buffer);
   });
 };
 
@@ -138,7 +151,11 @@ class ProjectService {
         data: updatedProject
       };
     } catch (error) {
-      console.error('❌ Update project service error:', error);
+      console.error('❌ Update project service error:', {
+        message: error.message,
+        code: error.http_code,
+        stack: error.stack
+      });
       throw error;
     }
   }

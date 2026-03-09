@@ -6,10 +6,16 @@ class CommissionController {
 
   // ================= ASSOCIATE COMMISSION ROUTES =================
 
-  // Get all commissions for logged-in associate
+  // Get all commissions (Admin sees all, Associate sees own)
   async getMyCommissions(req, res) {
     try {
-      const commissions = await Commission.find({ associate: req.user.id })
+      let query = {};
+      if (req.user.role !== 'admin') {
+        query.associate = req.user.id;
+      }
+
+      const commissions = await Commission.find(query)
+        .populate('associate', 'name email phone')
         .populate('payment', 'customerName amount paymentType')
         .populate('project', 'name location')
         .sort({ earnedDate: -1 });

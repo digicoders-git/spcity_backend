@@ -33,7 +33,7 @@ class LeadController {
 
       const leadData = {
         ...req.body,
-        assignedTo: req.body.assignedTo || req.user.id,
+        associate: req.body.associate || req.user.id,
         addedBy: req.user.id
       };
 

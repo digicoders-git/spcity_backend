@@ -8,7 +8,7 @@ class LeadService {
       
       // If user is associate, only show their leads
       if (userId) {
-        query.assignedTo = userId;
+        query.associate = userId;
       }
 
       // Add search filters
@@ -24,8 +24,9 @@ class LeadService {
       if (source) query.source = source;
 
       const leads = await Lead.find(query)
-        .populate('assignedTo', 'name')
+        .populate('associate', 'name')
         .populate('addedBy', 'name')
+        .populate('project', 'name')
         .sort({ createdAt: -1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
@@ -53,7 +54,7 @@ class LeadService {
       await lead.save();
 
       const populatedLead = await Lead.findById(lead._id)
-        .populate('assignedTo', 'name')
+        .populate('associate', 'name')
         .populate('addedBy', 'name');
 
       return {
@@ -78,7 +79,7 @@ class LeadService {
       }
 
       // Check if user has permission to update this lead
-      if (user.role === 'associate' && lead.assignedTo.toString() !== user.id) {
+      if (user.role === 'associate' && lead.associate.toString() !== user.id) {
         return {
           success: false,
           message: 'Not authorized to update this lead',
@@ -90,7 +91,7 @@ class LeadService {
         leadId,
         updateData,
         { new: true, runValidators: true }
-      ).populate('assignedTo', 'name').populate('addedBy', 'name');
+      ).populate('associate', 'name').populate('addedBy', 'name');
 
       return {
         success: true,
@@ -114,7 +115,7 @@ class LeadService {
       }
 
       // Check if user has permission to delete this lead
-      if (user.role === 'associate' && lead.assignedTo.toString() !== user.id) {
+      if (user.role === 'associate' && lead.associate.toString() !== user.id) {
         return {
           success: false,
           message: 'Not authorized to delete this lead',
@@ -138,7 +139,7 @@ class LeadService {
     try {
       let matchQuery = {};
       if (userId) {
-        matchQuery.assignedTo = userId;
+        matchQuery.associate = userId;
       }
 
       const stats = await Lead.aggregate([
@@ -169,7 +170,7 @@ class LeadService {
   async getLeadById(leadId, user) {
     try {
       const lead = await Lead.findById(leadId)
-        .populate('assignedTo', 'name')
+        .populate('associate', 'name')
         .populate('addedBy', 'name');
 
       if (!lead) {
@@ -180,7 +181,7 @@ class LeadService {
       }
 
       // Check if user has permission to view this lead
-      if (user.role === 'associate' && lead.assignedTo._id.toString() !== user.id) {
+      if (user.role === 'associate' && lead.associate._id.toString() !== user.id) {
         return {
           success: false,
           message: 'Not authorized to view this lead',

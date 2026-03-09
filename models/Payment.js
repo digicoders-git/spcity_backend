@@ -69,6 +69,10 @@ const paymentSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
+  },
+  commissionGenerated: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

@@ -51,8 +51,36 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
-  lastLogin: {
-    type: Date
+  rank: {
+    type: String,
+    enum: ['STAR', 'GOLD', 'PLATINUM', 'RUBY', 'EMERALD', 'DIAMOND', 'DOUBLE DIAMOND', 'CROWN', 'EX CROWN', 'SUPER CROWN', 'ROYAL CROWN'],
+    default: 'STAR'
+  },
+  totalSales: {
+    type: Number,
+    default: 0
+  },
+  address: {
+    type: String,
+    trim: true
+  },
+  bio: {
+    type: String,
+    trim: true
+  },
+  emailNotifications: {
+    type: Boolean,
+    default: true
+  },
+  smsNotifications: {
+    type: Boolean,
+    default: false
+  },
+  commissionRate: {
+    type: Number,
+    min: 0,
+    max: 100,
+    default: 0
   }
 }, {
   timestamps: true

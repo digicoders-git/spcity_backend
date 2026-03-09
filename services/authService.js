@@ -137,7 +137,7 @@ class AuthService {
   // Update user profile
   async updateUserProfile(userId, updateData) {
     try {
-      const allowedFields = ['name', 'phone', 'address', 'bio'];
+      const allowedFields = ['name', 'phone', 'address', 'bio', 'emailNotifications', 'smsNotifications'];
       const updates = {};
       
       Object.keys(updateData).forEach(key => {

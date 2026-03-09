@@ -49,37 +49,53 @@ class DashboardService {
         };
       } else {
         // Associate dashboard stats
-        const totalLeads = await Lead.countDocuments({ associate: user.id });
-        const totalPayments = await Payment.countDocuments({ associate: user.id });
+        const associateId = user.id;
+        const totalLeads = await Lead.countDocuments({ associate: associateId });
+        const totalPayments = await Payment.countDocuments({ associate: associateId });
         
-        // Get commission data from Commission model
+        // Get commission and withdrawal data
         const Commission = require('../models/Commission');
-        const commissions = await Commission.find({ associate: user.id });
-        const totalCommission = commissions.reduce((sum, c) => sum + c.commissionAmount, 0);
+        const Withdrawal = require('../models/Withdrawal');
+        const commissions = await Commission.find({ associate: associateId });
+        const withdrawals = await Withdrawal.find({ associate: associateId });
         
+        const totalEarned = commissions.reduce((sum, c) => sum + c.commissionAmount, 0);
+        const totalWithdrawn = withdrawals
+          .filter(w => w.status === 'Completed')
+          .reduce((sum, w) => sum + w.amount, 0);
+        const pendingWithdrawal = withdrawals
+          .filter(w => w.status === 'Pending')
+          .reduce((sum, w) => sum + w.amount, 0);
+        const availableBalance = totalEarned - totalWithdrawn - pendingWithdrawal;
+        
+        // Get Advance summary
+        const Expense = require('../models/Expense');
+        const advances = await Expense.find({
+          associate: associateId,
+          category: 'Advance',
+          status: 'Approved'
+        });
+        const totalAdvance = advances.reduce((sum, exp) => sum + exp.amount, 0);
+
         const convertedLeads = await Lead.countDocuments({ 
-          associate: user.id, 
+          associate: associateId, 
           status: 'Deal Done' 
         });
 
-        // Get site visits count (fallback to 0 if model doesn't exist)
-        let totalSiteVisits = 0;
-        try {
-          const SiteVisit = require('../models/SiteVisit');
-          totalSiteVisits = await SiteVisit.countDocuments({ associate: user.id });
-        } catch (error) {
-          // SiteVisit model doesn't exist, use fallback calculation
-          totalSiteVisits = Math.floor(totalLeads * 0.4); // 40% of leads become site visits
-        }
+        // Get site visits count
+        const SiteVisit = require('../models/SiteVisit');
+        const totalSiteVisits = await SiteVisit.countDocuments({ associate: associateId });
 
         stats = {
           totalLeads,
           convertedLeads,
           totalPayments,
           totalSiteVisits,
-          totalCommission,
-          pendingCommission: 0, // Will be calculated from pending payments if needed
-          monthlyCommission: 0, // Will be calculated if needed
+          totalCommission: totalEarned,
+          availableBalance,
+          totalWithdrawn,
+          pendingWithdrawal,
+          totalAdvance,
           conversionRate: totalLeads > 0 ? ((convertedLeads / totalLeads) * 100).toFixed(1) : 0
         };
       }
@@ -102,7 +118,7 @@ class DashboardService {
 
       let matchQuery = { createdAt: { $gte: startDate } };
       if (user.role === 'associate') {
-        matchQuery.assignedTo = user.id;
+        matchQuery.associate = user.id;
       }
 
       const leadsTrend = await Lead.aggregate([
@@ -187,7 +203,7 @@ class DashboardService {
     try {
       let matchQuery = {};
       if (user.role === 'associate') {
-        matchQuery.assignedTo = user.id;
+        matchQuery.associate = user.id;
       }
 
       const leadSources = await Lead.aggregate([
@@ -217,7 +233,7 @@ class DashboardService {
       if (user.role === 'admin') {
         // Recent leads
         const recentLeads = await Lead.find()
-          .populate('assignedTo', 'name')
+          .populate('associate', 'name')
           .populate('addedBy', 'name')
           .sort({ createdAt: -1 })
           .limit(5);
@@ -232,7 +248,7 @@ class DashboardService {
         activities = [
           ...recentLeads.map(lead => ({
             type: 'lead',
-            message: `New lead ${lead.name} assigned to ${lead.assignedTo.name}`,
+            message: `New lead ${lead.name} assigned to ${lead.associate.name}`,
             timestamp: lead.createdAt
           })),
           ...recentPayments.map(payment => ({
@@ -243,7 +259,8 @@ class DashboardService {
         ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 10);
       } else {
         // Associate activities
-        const recentLeads = await Lead.find({ assignedTo: user.id })
+        const recentLeads = await Lead.find({ associate: user.id })
+          .populate('project', 'name')
           .sort({ createdAt: -1 })
           .limit(5);
 
@@ -278,8 +295,12 @@ class DashboardService {
   // Get associate performance data
   async getAssociatePerformance(associateId) {
     try {
+      const Lead = require('../models/Lead');
+      const Commission = require('../models/Commission');
+      const SiteVisit = require('../models/SiteVisit');
+      
       const performance = await Lead.aggregate([
-        { $match: { assignedTo: associateId } },
+        { $match: { associate: associateId } },
         {
           $group: {
             _id: '$status',
@@ -288,14 +309,37 @@ class DashboardService {
         }
       ]);
 
-      const commissionData = await Payment.aggregate([
-        { $match: { associate: associateId, status: 'Received' } },
+      const commissionData = await Commission.aggregate([
+        { $match: { associate: associateId } },
         {
           $group: {
-            _id: {
-              $dateToString: { format: '%Y-%m', date: '$receivedDate' }
-            },
-            commission: { $sum: { $multiply: ['$amount', 0.05] } }
+            _id: { $dateToString: { format: '%Y-%m', date: '$earnedDate' } },
+            commission: { $sum: '$commissionAmount' }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]);
+
+      const leadTrend = await Lead.aggregate([
+        { $match: { associate: associateId } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
+            leads: { $sum: 1 },
+            deals: {
+              $sum: { $cond: [{ $eq: ['$status', 'Deal Done'] }, 1, 0] }
+            }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]);
+
+      const visitTrend = await SiteVisit.aggregate([
+        { $match: { associate: associateId } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m', date: '$date' } },
+            visits: { $sum: 1 }
           }
         },
         { $sort: { _id: 1 } }
@@ -305,7 +349,9 @@ class DashboardService {
         success: true,
         data: {
           leadPerformance: performance,
-          commissionTrend: commissionData
+          commissionTrend: commissionData,
+          leadTrend,
+          visitTrend
         }
       };
     } catch (error) {

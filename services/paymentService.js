@@ -1,5 +1,19 @@
 const Payment = require('../models/Payment');
 
+const RANKS = [
+  { name: 'CUSTOM', min: 0, max: 500000, rate: 5 },
+  { name: 'STAR', min: 500000, max: 5000000, rate: 6 },
+  { name: 'GOLD', min: 4000000, max: 10000000, rate: 7 },
+  { name: 'PLATINUM', min: 10000000, max: 20000000, rate: 8 },
+  { name: 'RUBY', min: 20000000, max: 50000000, rate: 9 },
+  { name: 'EMERALD', min: 50000000, max: 100000000, rate: 10 },
+  { name: 'DOUBLE DIAMOND', min: 100000000, max: 150000000, rate: 11 },
+  { name: 'CROWN', min: 150000000, max: 200000000, rate: 12 },
+  { name: 'EX CROWN', min: 200000000, max: 300000000, rate: 13 },
+  { name: 'SUPER CROWN', min: 300000000, max: 500000000, rate: 14 },
+  { name: 'ROYAL CROWN', min: 500000000, max: Infinity, rate: 15 }
+];
+
 class PaymentService {
   // Get all payments with filters
   async getAllPayments(page, limit, search, status, paymentType, userId) {
@@ -59,6 +73,12 @@ class PaymentService {
         .populate('site', 'name address')
         .populate('associate', 'name')
         .populate('createdBy', 'name');
+
+      // 🔥 Automatically generate commissions if payment received during creation
+      if (payment.status === 'Received') {
+        const CommissionService = require('./commissionService');
+        await CommissionService.generateCommissionFromPayment(payment._id);
+      }
 
       return {
         success: true,
@@ -134,6 +154,12 @@ class PaymentService {
        .populate('associate', 'name')
        .populate('createdBy', 'name');
 
+      // 🔥 Automatically generate commissions if payment received
+      if (status === 'Received') {
+        const CommissionService = require('./commissionService');
+        await CommissionService.generateCommissionFromPayment(paymentId);
+      }
+
       return {
         success: true,
         message: 'Payment status updated successfully',
@@ -178,53 +204,48 @@ class PaymentService {
   // Get associate commission data
   async getAssociateCommission(associateId) {
     try {
-      const commissionRate = 0.05; // 5% commission
+      const Commission = require('../models/Commission');
+      const User = require('../models/User');
 
-      const totalCommission = await Payment.aggregate([
-        { $match: { associate: associateId, status: 'Received' } },
-        { $group: { _id: null, total: { $sum: { $multiply: ['$amount', commissionRate] } } } }
-      ]);
+      const user = await User.findById(associateId);
+      
+      const commissions = await Commission.find({ associate: associateId });
+      
+      const totalEarned = commissions.reduce((sum, c) => sum + (c.commissionAmount || 0), 0);
+      
+      const now = new Date();
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthlyCommission = commissions
+        .filter(c => new Date(c.createdAt) >= firstDayOfMonth)
+        .reduce((sum, c) => sum + (c.commissionAmount || 0), 0);
 
-      const pendingCommission = await Payment.aggregate([
-        { $match: { associate: associateId, status: 'Pending' } },
-        { $group: { _id: null, total: { $sum: { $multiply: ['$amount', commissionRate] } } } }
-      ]);
+      // Pending (based on Payment status)
+      const pendingPayments = await Payment.find({ associate: associateId, status: 'Pending' });
+      const currentRankRate = user ? (RANKS.find(r => r.name === user.rank)?.rate || 5) : 5;
+      const pendingCommission = pendingPayments.reduce((sum, p) => sum + (p.amount * currentRankRate / 100), 0);
 
-      const monthlyCommission = await Payment.aggregate([
-        {
-          $match: {
-            associate: associateId,
-            status: 'Received',
-            receivedDate: {
-              $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-            }
-          }
-        },
-        { $group: { _id: null, total: { $sum: { $multiply: ['$amount', commissionRate] } } } }
-      ]);
-
-      const commissionHistory = await Payment.find({
-        associate: associateId,
-        status: 'Received'
-      })
+      const commissionHistory = await Commission.find({ associate: associateId })
         .populate('project', 'name')
-        .sort({ receivedDate: -1 })
+        .populate('payment', 'customerName amount')
+        .sort({ createdAt: -1 })
         .limit(10);
 
       return {
         success: true,
         data: {
-          totalCommission: totalCommission[0]?.total || 0,
-          pendingCommission: pendingCommission[0]?.total || 0,
-          monthlyCommission: monthlyCommission[0]?.total || 0,
-          commissionRate: commissionRate * 100,
-          history: commissionHistory.map(payment => ({
-            id: payment._id,
-            customerName: payment.customerName,
-            project: payment.project.name,
-            amount: payment.amount,
-            commission: payment.amount * commissionRate,
-            receivedDate: payment.receivedDate
+          totalCommission: totalEarned,
+          pendingCommission: pendingCommission,
+          monthlyCommission: monthlyCommission,
+          currentRank: user ? user.rank : 'STAR',
+          totalSales: user ? user.totalSales : 0,
+          history: commissionHistory.map(c => ({
+            id: c._id,
+            customerName: c.payment?.customerName || 'N/A',
+            project: c.project?.name || 'N/A',
+            amount: c.saleAmount,
+            commission: c.commissionAmount,
+            rate: c.commissionRate,
+            earnedDate: c.createdAt
           }))
         }
       };

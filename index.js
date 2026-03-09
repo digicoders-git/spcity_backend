@@ -17,27 +17,39 @@ const dashboardRoutes = require('./routes/dashboard');
 const siteVisitRoutes = require('./routes/siteVisits');
 const commissionRoutes = require('./routes/commissions');
 const invoiceRoutes = require('./routes/invoices');
+const expenseRoutes = require('./routes/expenses');
+const rewardRoutes = require('./routes/rewards');
 
 const app = express();
 
 /* ================= DB ================= */
 connectDB();
 
-/* ================= CORS (FINAL & SAFE) ================= */
+/* ================= CORS (DYNAMIC & SAFE) ================= */
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
+  'http://localhost:5174',
   'https://spcity-adminpanel.vercel.app',
-  'https://spcity-adminpanel.vercel.app/'
-];
+  process.env.CORS_ORIGIN
+].filter(origin => origin && origin !== undefined);
 
 app.use(cors({
   origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    
+    // Check if origin is allowed
+    const isAllowed = allowedOrigins.some(ao => {
+      if (!ao) return false;
+      // Precise match or match with trailing slash
+      return origin === ao || origin === ao.replace(/\/$/, '') || `${origin}/` === ao;
+    });
+
+    if (isAllowed) {
       callback(null, true);
     } else {
-      console.log('Blocked by CORS:', origin); // Log blocked origin for debugging
+      console.log('Blocked by CORS:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -57,7 +69,7 @@ app.use(helmet({
 /* ================= RATE LIMIT ================= */
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100
+  max: 1000
 });
 app.use(globalLimiter);
 
@@ -81,6 +93,8 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/site-visits', siteVisitRoutes);
 app.use('/api/commissions', commissionRoutes);
+app.use('/api/expenses', expenseRoutes);
+app.use('/api/rewards', rewardRoutes);
 
 // 🔥 Invoice route with relaxed limiter
 app.use('/api/invoices', invoiceLimiter, invoiceRoutes);

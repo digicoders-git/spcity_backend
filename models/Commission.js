@@ -32,6 +32,16 @@ const commissionSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
+  level: {
+    type: Number,
+    default: 1,
+    min: 1,
+    max: 11
+  },
+  associateRank: {
+    type: String,
+    enum: ['CUSTOM', 'STAR', 'GOLD', 'PLATINUM', 'RUBY', 'EMERALD', 'DIAMOND', 'DOUBLE DIAMOND', 'CROWN', 'EX CROWN', 'SUPER CROWN', 'ROYAL CROWN'],
+  },
   status: {
     type: String,
     enum: ['Earned', 'Withdrawn', 'Pending'],

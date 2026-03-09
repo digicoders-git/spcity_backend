@@ -84,6 +84,7 @@ class AssociateService {
 
       const associate = new User({
         ...associateData,
+        plainPassword: plainPassword,
         role: 'associate',
         permissions: associateData.permissions || defaultPermissions,
         status: 'Active'

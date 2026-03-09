@@ -30,6 +30,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
   'http://localhost:5174',
+  'https://sp-city-web.onrender.com',
   'https://spcity-adminpanel.vercel.app',
   process.env.CORS_ORIGIN
 ].filter(origin => origin && origin !== undefined);

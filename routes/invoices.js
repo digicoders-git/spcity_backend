@@ -12,17 +12,16 @@ const {
 } = require('../controllers/invoiceController');
 
 router.use(protect);
-router.use(adminAuth);
 
 router.route('/')
   .get(getInvoices)
-  .post(createInvoice);
+  .post(adminAuth, createInvoice);
 
 router.route('/:id')
   .get(getInvoice)
-  .put(updateInvoice)
-  .delete(deleteInvoice);
+  .put(adminAuth, updateInvoice)
+  .delete(adminAuth, deleteInvoice);
 
-router.put('/:id/status', updateStatus);
+router.put('/:id/status', adminAuth, updateStatus);
 
 module.exports = router;

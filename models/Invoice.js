@@ -67,6 +67,16 @@ const invoiceSchema = new mongoose.Schema({
     trim: true
   },
 
+  associate: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  
+  reason: {
+    type: String,
+    trim: true
+  },
+
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

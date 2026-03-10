@@ -17,9 +17,17 @@ exports.getInvoices = async (req, res) => {
 
     if (status && status !== 'all') query.status = status;
     if (projectId) query.project = projectId;
+    
+    // Authorization: associate can only see their own
+    if (req.user.role === 'associate') {
+      query.associate = req.user.id;
+    } else if (req.query.associateId) {
+      query.associate = req.query.associateId;
+    }
 
     const invoices = await Invoice.find(query)
       .populate('project', 'name')
+      .populate('associate', 'name email phone')
       .sort({ createdAt: -1 })
       .limit(Number(limit))
       .skip((page - 1) * limit);
@@ -43,10 +51,15 @@ exports.getInvoices = async (req, res) => {
 exports.getInvoice = async (req, res) => {
   try {
     const invoice = await Invoice.findById(req.params.id)
-      .populate('project', 'name');
+      .populate('project', 'name')
+      .populate('associate', 'name email phone');
 
     if (!invoice) {
       return res.status(404).json({ message: 'Invoice not found' });
+    }
+
+    if (req.user.role === 'associate' && invoice.associate?._id.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Access denied' });
     }
 
     res.status(200).json({ success: true, data: invoice });

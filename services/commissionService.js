@@ -227,6 +227,17 @@ class CommissionService {
       withdrawal.processedBy = adminId;
       withdrawal.processedDate = new Date();
       withdrawal.notes = notes;
+
+      // 🔥 Calculate Taxes if Completed
+      if (status === 'Completed') {
+        const tds = (withdrawal.amount * 5) / 100;
+        const serviceTax = (withdrawal.amount * 5) / 100;
+        
+        withdrawal.tdsAmount = tds;
+        withdrawal.serviceTaxAmount = serviceTax;
+        withdrawal.netAmount = withdrawal.amount - (tds + serviceTax);
+      }
+
       await withdrawal.save();
 
       return {

@@ -38,6 +38,18 @@ const withdrawalSchema = new mongoose.Schema({
   processedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  },
+  tdsAmount: {
+    type: Number,
+    default: 0
+  },
+  serviceTaxAmount: {
+    type: Number,
+    default: 0
+  },
+  netAmount: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true

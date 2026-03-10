@@ -6,7 +6,8 @@ class AssociateController {
   async getAllAssociates(req, res) {
     try {
       const { page = 1, limit = 10, search = '' } = req.query;
-      const result = await associateService.getAllAssociates(page, limit, search);
+      const sponsorId = req.user.role === 'associate' ? req.user.id : null;
+      const result = await associateService.getAllAssociates(page, limit, search, sponsorId);
       res.json(result);
     } catch (error) {
       console.error('Get associates error:', error);
@@ -33,6 +34,10 @@ class AssociateController {
         ...req.body,
         createdBy: req.user.id
       };
+
+      if (req.user.role === 'associate' && !associateData.sponsor) {
+        associateData.sponsor = req.user.id;
+      }
 
       const result = await associateService.createAssociate(associateData);
 
@@ -62,7 +67,7 @@ class AssociateController {
         });
       }
 
-      const result = await associateService.updateAssociate(req.params.id, req.body);
+      const result = await associateService.updateAssociate(req.params.id, req.body, req.user);
 
       if (!result.success) {
         return res.status(404).json(result);
@@ -90,7 +95,7 @@ class AssociateController {
         });
       }
 
-      const result = await associateService.changeAssociatePassword(req.params.id, req.body.newPassword);
+      const result = await associateService.changeAssociatePassword(req.params.id, req.body.newPassword, req.user);
 
       if (!result.success) {
         return res.status(404).json(result);
@@ -109,7 +114,7 @@ class AssociateController {
   // Delete associate (Admin only)
   async deleteAssociate(req, res) {
     try {
-      const result = await associateService.deleteAssociate(req.params.id);
+      const result = await associateService.deleteAssociate(req.params.id, req.user);
 
       if (!result.success) {
         return res.status(404).json(result);
@@ -165,7 +170,7 @@ class AssociateController {
         });
       }
 
-      const result = await associateService.updateAssociateStatus(req.params.id, status);
+      const result = await associateService.updateAssociateStatus(req.params.id, status, req.user);
 
       if (!result.success) {
         return res.status(404).json(result);

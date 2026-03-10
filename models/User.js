@@ -55,6 +55,14 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  sponsor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  level: {
+    type: Number,
+    default: 1
+  },
   rank: {
     type: String,
     enum: ['STAR', 'GOLD', 'PLATINUM', 'RUBY', 'EMERALD', 'DIAMOND', 'DOUBLE DIAMOND', 'CROWN', 'EX CROWN', 'SUPER CROWN', 'ROYAL CROWN'],

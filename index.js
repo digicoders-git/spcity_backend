@@ -25,28 +25,30 @@ const app = express();
 /* ================= DB ================= */
 connectDB();
 
-/* ================= CORS (DYNAMIC & SAFE) ================= */
+/* ================= CORS (DYNAMIC & PERMISSIVE) ================= */
+const envOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [];
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
   'http://localhost:5174',
-  'https://sp-city-web.onrender.com',
   'https://spcity-adminpanel.vercel.app',
   'https://spcity-website.vercel.app',
-  process.env.CORS_ORIGIN
-].filter(origin => origin && origin !== undefined);
+  'https://sp-city-web.onrender.com',
+  ...envOrigins
+].map(o => o.trim().replace(/\/$/, '')) // Remove trailing slashes
+ .filter(o => o !== '');
 
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
     
-    // Check if origin is allowed
-    const isAllowed = allowedOrigins.some(ao => {
-      if (!ao) return false;
-      // Precise match or match with trailing slash
-      return origin === ao || origin === ao.replace(/\/$/, '') || `${origin}/` === ao;
-    });
+    const normalizedOrigin = origin.trim().replace(/\/$/, '');
+    
+    // Check if origin is allowed or matches our subdomains
+    const isAllowed = allowedOrigins.includes(normalizedOrigin) || 
+                     normalizedOrigin.endsWith('.vercel.app') || 
+                     normalizedOrigin.endsWith('.onrender.com');
 
     if (isAllowed) {
       callback(null, true);
@@ -57,7 +59,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept']
 }));
 
 // 🔥 Preflight support

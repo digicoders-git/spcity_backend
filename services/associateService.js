@@ -2,10 +2,11 @@ const User = require('../models/User');
 
 class AssociateService {
   // Get all associates with pagination and search
-  async getAllAssociates(page, limit, search) {
+  async getAllAssociates(page, limit, search, sponsorId) {
     try {
       const query = {
         role: 'associate',
+        ...(sponsorId && { sponsor: sponsorId }),
         ...(search && {
           $or: [
             { name: { $regex: search, $options: 'i' } },
@@ -18,6 +19,7 @@ class AssociateService {
       const associates = await User.find(query)
         .select('-password')
         .populate('createdBy', 'name')
+        .populate('sponsor', 'name')
         .sort({ createdAt: -1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
@@ -82,12 +84,21 @@ class AssociateService {
         defaultPermissions.push('projects');
       }
 
+      let level = 1;
+      if (associateData.sponsor) {
+        const sponsorObj = await User.findById(associateData.sponsor);
+        if (sponsorObj && sponsorObj.level) {
+          level = sponsorObj.level + 1;
+        }
+      }
+
       const associate = new User({
         ...associateData,
         plainPassword: plainPassword,
         role: 'associate',
         permissions: associateData.permissions || defaultPermissions,
-        status: 'Active'
+        status: 'Active',
+        level: level
       });
 
       await associate.save();
@@ -117,7 +128,7 @@ class AssociateService {
   }
 
   // Update associate
-  async updateAssociate(associateId, updateData) {
+  async updateAssociate(associateId, updateData, user) {
     try {
       const associate = await User.findById(associateId);
       if (!associate || associate.role !== 'associate') {
@@ -125,6 +136,11 @@ class AssociateService {
           success: false,
           message: 'Associate not found'
         };
+      }
+
+      // Authorization check
+      if (user.role !== 'admin' && associate.sponsor?.toString() !== user.id) {
+        return { success: false, message: 'Unauthorized: You can only update your direct downline' };
       }
 
       // Remove fields that shouldn't be updated via regular update
@@ -161,7 +177,7 @@ class AssociateService {
   }
 
   // Change associate password
-  async changeAssociatePassword(associateId, newPassword) {
+  async changeAssociatePassword(associateId, newPassword, user) {
     try {
       const associate = await User.findById(associateId);
       if (!associate || associate.role !== 'associate') {
@@ -169,6 +185,11 @@ class AssociateService {
           success: false,
           message: 'Associate not found'
         };
+      }
+
+      // Authorization check
+      if (user.role !== 'admin' && associate.sponsor?.toString() !== user.id) {
+        return { success: false, message: 'Unauthorized: You can only edit your direct downline' };
       }
 
       associate.password = newPassword;
@@ -184,7 +205,7 @@ class AssociateService {
   }
 
   // Delete associate
-  async deleteAssociate(associateId) {
+  async deleteAssociate(associateId, user) {
     try {
       const associate = await User.findById(associateId);
       if (!associate || associate.role !== 'associate') {
@@ -192,6 +213,11 @@ class AssociateService {
           success: false,
           message: 'Associate not found'
         };
+      }
+
+      // Authorization check
+      if (user.role !== 'admin' && associate.sponsor?.toString() !== user.id) {
+        return { success: false, message: 'Unauthorized: You can only delete your direct downline' };
       }
 
       await User.findByIdAndDelete(associateId);
@@ -219,7 +245,7 @@ class AssociateService {
   }
 
   // Update associate status
-  async updateAssociateStatus(associateId, status) {
+  async updateAssociateStatus(associateId, status, user) {
     try {
       const associate = await User.findById(associateId);
       if (!associate || associate.role !== 'associate') {
@@ -227,6 +253,11 @@ class AssociateService {
           success: false,
           message: 'Associate not found'
         };
+      }
+
+      // Authorization check
+      if (user.role !== 'admin' && associate.sponsor?.toString() !== user.id) {
+        return { success: false, message: 'Unauthorized: You can only edit your direct downline' };
       }
 
       associate.status = status;

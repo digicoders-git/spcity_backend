@@ -1,6 +1,7 @@
 const CommissionService = require('../services/commissionService');
 const Commission = require('../models/Commission');
 const Withdrawal = require('../models/Withdrawal');
+const { createNotification } = require('./notificationController');
 
 class CommissionController {
 
@@ -113,6 +114,15 @@ class CommissionController {
         message: 'Withdrawal request submitted successfully. It will be processed within 2-3 business days.',
         data: withdrawal 
       });
+
+      createNotification({
+        userId: null,
+        role: 'admin',
+        title: 'New Withdrawal Request',
+        message: `A new withdrawal request of ₹${amount} has been made by Associate.`,
+        type: 'warning',
+        link: '/admin/commissions'
+      });
     } catch (error) {
       console.error('Request withdrawal error:', error);
       res.status(400).json({ success: false, message: error.message });
@@ -163,6 +173,17 @@ class CommissionController {
       }
       
       res.json(result);
+
+      if (result.success && result.data) {
+        createNotification({
+          userId: result.data.associate,
+          role: 'associate',
+          title: 'Withdrawal Request Updated',
+          message: `Your withdrawal request of ₹${result.data.amount} is now ${status}.`,
+          type: status === 'Completed' ? 'success' : 'error',
+          link: '/associate/commission/withdrawal'
+        });
+      }
     } catch (error) {
       console.error('Process withdrawal error:', error);
       res.status(500).json({ success: false, message: error.message });
@@ -183,6 +204,19 @@ class CommissionController {
         message: 'Commission generated successfully',
         data: result.data
       });
+
+      if (result.success && result.data && result.data.length > 0) {
+        result.data.forEach(comm => {
+           createNotification({
+             userId: comm.associate,
+             role: 'associate',
+             title: 'New Commission Earned',
+             message: `You earned a commission of ₹${comm.commissionAmount} for a payment.`,
+             type: 'success',
+             link: '/associate/commission/total'
+           });
+        });
+      }
     } catch (error) {
       console.error('Generate commission error:', error);
       res.status(500).json({ success: false, message: error.message });

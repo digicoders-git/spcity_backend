@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
 const SiteVisit = require('../models/SiteVisit');
+const { createNotification } = require('../controllers/notificationController');
 
 // Get all site visits for logged-in associate
 router.get('/', protect, async (req, res) => {
@@ -24,6 +25,15 @@ router.post('/', protect, async (req, res) => {
     });
     const populatedVisit = await SiteVisit.findById(visit._id).populate('project', 'name');
     res.status(201).json({ success: true, data: populatedVisit });
+
+    createNotification({
+      userId: null,
+      role: 'admin',
+      title: 'New Site Visit Scheduled',
+      message: `Associate ${req.user.name} has scheduled a site visit for project ${populatedVisit.project?.name}.`,
+      type: 'info',
+      link: '/admin/sites' // or admin visit dashboard if exists
+    });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }

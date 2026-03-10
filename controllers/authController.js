@@ -1,5 +1,6 @@
 const authService = require('../services/authService');
 const { validationResult } = require('express-validator');
+const { createNotification } = require('./notificationController');
 
 class AuthController {
   // Login user
@@ -95,6 +96,15 @@ class AuthController {
       }
 
       res.json(result);
+
+      createNotification({
+        userId: req.user.id,
+        role: req.user.role,
+        title: 'Profile Updated',
+        message: 'Your profile information has been updated successfully.',
+        type: 'success',
+        link: req.user.role === 'admin' ? '/admin/profile' : '/associate/profile'
+      });
     } catch (error) {
       console.error('Update profile error:', error);
       res.status(500).json({
@@ -124,6 +134,15 @@ class AuthController {
       }
 
       res.json(result);
+
+      createNotification({
+        userId: req.user.id,
+        role: req.user.role,
+        title: 'Password Changed',
+        message: 'Your account password has been changed successfully.',
+        type: 'warning',
+        link: req.user.role === 'admin' ? '/admin/profile' : '/associate/profile'
+      });
     } catch (error) {
       console.error('Change password error:', error);
       res.status(500).json({

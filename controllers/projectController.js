@@ -1,6 +1,7 @@
 const projectService = require('../services/projectService');
 const CommissionService = require('../services/commissionService');
 const { validationResult } = require('express-validator');
+const { createNotification } = require('./notificationController');
 
 class ProjectController {
 
@@ -51,6 +52,17 @@ class ProjectController {
       );
 
       res.status(201).json(result);
+
+      if (result.success && result.data) {
+        createNotification({
+          userId: null,
+          role: 'all',
+          title: 'New Project Launched',
+          message: `A new project "${result.data.name}" has been launched at ${result.data.location}.`,
+          type: 'success',
+          link: req.user.role === 'admin' ? '/admin/projects' : '/associate/projects'
+        });
+      }
     } catch (error) {
       console.error('Create project error:', error);
       res.status(500).json({
@@ -88,6 +100,17 @@ class ProjectController {
       }
 
       res.json(result);
+
+      if (result.success && result.data) {
+        createNotification({
+          userId: null,
+          role: 'admin',
+          title: 'Project Updated',
+          message: `Project "${result.data.name}" details have been updated.`,
+          type: 'info',
+          link: '/admin/projects'
+        });
+      }
     } catch (error) {
       console.error('❌ Update project error:', error);
       res.status(500).json({

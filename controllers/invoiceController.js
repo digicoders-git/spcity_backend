@@ -1,4 +1,6 @@
 const Invoice = require('../models/Invoice');
+const User = require('../models/User');
+const { createNotification } = require('./notificationController');
 
 /* ================= GET ALL ================= */
 exports.getInvoices = async (req, res) => {
@@ -71,22 +73,35 @@ exports.getInvoice = async (req, res) => {
 /* ================= CREATE ================= */
 exports.createInvoice = async (req, res) => {
   try {
-    if (!req.body.invoiceNumber) {
+    let invoiceData = { ...req.body };
+
+    if (!invoiceData.invoiceNumber) {
       const d = new Date().toISOString().slice(0, 10).replace(/-/g, '');
       const r = Math.floor(1000 + Math.random() * 9000);
-      req.body.invoiceNumber = `INV-${d}-${r}`;
+      invoiceData.invoiceNumber = `INV-${d}-${r}`;
     }
 
-    const items = req.body.items.map(i => ({
+    if (!invoiceData.associate) {
+      delete invoiceData.associate;
+    } else {
+      const associate = await User.findById(invoiceData.associate);
+      if (associate) {
+        if (!invoiceData.customerName) invoiceData.customerName = associate.name;
+        if (!invoiceData.customerPhone) invoiceData.customerPhone = associate.phone || 'N/A';
+        if (!invoiceData.customerEmail) invoiceData.customerEmail = associate.email;
+      }
+    }
+
+    const items = invoiceData.items.map(i => ({
       ...i,
       amount: i.quantity * i.unitPrice
     }));
 
     const subtotal = items.reduce((s, i) => s + i.amount, 0);
-    const taxAmount = (subtotal * (req.body.taxRate || 0)) / 100;
+    const taxAmount = (subtotal * (invoiceData.taxRate || 0)) / 100;
 
     const invoice = await Invoice.create({
-      ...req.body,
+      ...invoiceData,
       items,
       subtotal,
       taxAmount,
@@ -95,9 +110,19 @@ exports.createInvoice = async (req, res) => {
     });
 
     res.status(201).json({ success: true, data: invoice });
+
+    // Dynamic Notification
+    createNotification({
+      userId: invoiceData.associate || null,
+      role: invoiceData.associate ? 'associate' : 'admin',
+      title: 'New Invoice Generated',
+      message: `Invoice #${invoice.invoiceNumber} has been generated for ${invoice.customerName}.`,
+      type: 'success',
+      link: '/admin/invoices' // generic link base
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server Error' });
+    res.status(500).json({ message: 'Server Error', error: err.message });
   }
 };
 
@@ -106,8 +131,20 @@ exports.updateInvoice = async (req, res) => {
   try {
     let updateData = { ...req.body };
 
-    if (req.body.items) {
-      updateData.items = req.body.items.map(i => ({
+    if (!updateData.associate) {
+      updateData.$unset = { associate: 1 };
+      delete updateData.associate;
+    } else {
+      const associate = await User.findById(updateData.associate);
+      if (associate) {
+        if (!updateData.customerName) updateData.customerName = associate.name;
+        if (!updateData.customerPhone) updateData.customerPhone = associate.phone || 'N/A';
+        if (!updateData.customerEmail) updateData.customerEmail = associate.email;
+      }
+    }
+
+    if (updateData.items) {
+      updateData.items = updateData.items.map(i => ({
         ...i,
         amount: i.quantity * i.unitPrice
       }));
@@ -133,7 +170,8 @@ exports.updateInvoice = async (req, res) => {
 
     res.status(200).json({ success: true, data: invoice });
   } catch (err) {
-    res.status(500).json({ message: 'Server Error' });
+    console.error(err);
+    res.status(500).json({ message: 'Server Error', error: err.message });
   }
 };
 

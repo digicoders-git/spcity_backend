@@ -1,5 +1,6 @@
 const leadService = require('../services/leadService');
 const { validationResult } = require('express-validator');
+const { createNotification } = require('./notificationController');
 
 class LeadController {
   // Get all leads
@@ -39,6 +40,17 @@ class LeadController {
 
       const result = await leadService.createLead(leadData);
       res.status(201).json(result);
+
+      if (result.success && result.data) {
+        createNotification({
+          userId: req.user.role === 'admin' ? leadData.associate : null,
+          role: req.user.role === 'admin' ? 'associate' : 'admin',
+          title: 'New Lead Added',
+          message: `A new lead "${leadData.name}" has been added.`,
+          type: 'info',
+          link: req.user.role === 'admin' ? '/admin/leads' : '/associate/leads'
+        });
+      }
     } catch (error) {
       console.error('Create lead error:', error);
       res.status(500).json({
@@ -67,6 +79,17 @@ class LeadController {
       }
 
       res.json(result);
+
+      if (result.success) {
+         createNotification({
+          userId: null,
+          role: 'admin',
+          title: 'Lead Updated',
+          message: `Lead details for have been updated by ${req.user.name}.`,
+          type: 'info',
+          link: '/admin/leads'
+        });
+      }
     } catch (error) {
       console.error('Update lead error:', error);
       res.status(500).json({

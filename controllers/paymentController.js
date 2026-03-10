@@ -1,5 +1,6 @@
 const paymentService = require('../services/paymentService');
 const { validationResult } = require('express-validator');
+const { createNotification } = require('./notificationController');
 
 class PaymentController {
   // Get all payments
@@ -39,6 +40,17 @@ class PaymentController {
 
       const result = await paymentService.createPayment(paymentData);
       res.status(201).json(result);
+
+      if (result.success && result.data) {
+        createNotification({
+          userId: req.user.role === 'admin' ? paymentData.associate : null,
+          role: req.user.role === 'admin' ? 'associate' : 'admin',
+          title: 'Payment Recorded',
+          message: `A new payment of ₹${paymentData.amount} has been recorded for ${paymentData.customerName || 'customer'}.`,
+          type: 'success',
+          link: req.user.role === 'admin' ? '/admin/payments' : '/associate/amount/total'
+        });
+      }
     } catch (error) {
       console.error('Create payment error:', error);
       res.status(500).json({
@@ -95,6 +107,17 @@ class PaymentController {
       }
 
       res.json(result);
+
+      if (result.success) {
+        createNotification({
+          userId: null,
+          role: 'admin',
+          title: 'Payment Status Updated',
+          message: `Payment status changed to ${req.body.status}.`,
+          type: 'info',
+          link: '/admin/payments'
+        });
+      }
     } catch (error) {
       console.error('Update payment status error:', error);
       res.status(500).json({

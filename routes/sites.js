@@ -4,6 +4,7 @@ const Site = require('../models/Site');
 const { auth, adminAuth } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const cloudinary = require('../config/cloudinary');
+const { createNotification } = require('../controllers/notificationController');
 
 const router = express.Router();
 
@@ -92,6 +93,15 @@ router.post('/', [
 
     const populatedSite = await Site.findById(site._id).populate('project', 'name');
     res.status(201).json({ success: true, message: 'Site created successfully', data: populatedSite });
+
+    createNotification({
+      userId: null,
+      role: 'all',
+      title: 'New Site Available',
+      message: `A new site "${populatedSite.name}" has been added to project ${populatedSite.project?.name}.`,
+      type: 'info',
+      link: req.user.role === 'admin' ? '/admin/sites' : '/associate/projects'
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Server error' });

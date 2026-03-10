@@ -1,5 +1,6 @@
 const associateService = require('../services/associateService');
 const { validationResult } = require('express-validator');
+const { createNotification } = require('./notificationController');
 
 class AssociateController {
   // Get all associates (Admin only)
@@ -46,6 +47,26 @@ class AssociateController {
       }
 
       res.status(201).json(result);
+
+      if (result.success && result.data) {
+        createNotification({
+          userId: result.data._id,
+          role: 'associate',
+          title: 'Welcome to SP City!',
+          message: `Your account has been created by ${req.user.name}. You can now login and start managing your leads.`,
+          type: 'success',
+          link: '/associate/profile'
+        });
+        
+        createNotification({
+          userId: null,
+          role: 'admin',
+          title: 'New Associate Created',
+          message: `Associate ${result.data.name} has been added to the system.`,
+          type: 'info',
+          link: '/admin/associates'
+        });
+      }
     } catch (error) {
       console.error('Create associate error:', error);
       res.status(500).json({
@@ -74,6 +95,17 @@ class AssociateController {
       }
 
       res.json(result);
+
+      if (result.success && result.data) {
+        createNotification({
+          userId: result.data._id,
+          role: 'associate',
+          title: 'Account Updated',
+          message: 'Your account details have been updated by Admin.',
+          type: 'info',
+          link: '/associate/profile'
+        });
+      }
     } catch (error) {
       console.error('Update associate error:', error);
       res.status(500).json({
@@ -177,6 +209,17 @@ class AssociateController {
       }
 
       res.json(result);
+
+      if (result.success && result.data) {
+        createNotification({
+          userId: result.data._id,
+          role: 'associate',
+          title: `Account Status: ${status}`,
+          message: `Your account status has been updated to ${status}.`,
+          type: status === 'Active' ? 'success' : 'warning',
+          link: '/associate/profile'
+        });
+      }
     } catch (error) {
       console.error('Update associate status error:', error);
       res.status(500).json({

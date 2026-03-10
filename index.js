@@ -19,6 +19,7 @@ const commissionRoutes = require('./routes/commissions');
 const invoiceRoutes = require('./routes/invoices');
 const expenseRoutes = require('./routes/expenses');
 const rewardRoutes = require('./routes/rewards');
+const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 
@@ -99,6 +100,7 @@ app.use('/api/site-visits', siteVisitRoutes);
 app.use('/api/commissions', commissionRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/rewards', rewardRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // 🔥 Invoice route with relaxed limiter
 app.use('/api/invoices', invoiceLimiter, invoiceRoutes);

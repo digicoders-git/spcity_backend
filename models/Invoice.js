@@ -25,6 +25,101 @@ const invoiceSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  fatherName: {
+    type: String,
+    trim: true
+  },
+  customerAddress: {
+    type: String,
+    trim: true
+  },
+  referenceId: {
+    type: String,
+    trim: true
+  },
+  plotId: {
+    type: String,
+    trim: true
+  },
+  plotNo: {
+    type: String,
+    trim: true
+  },
+  bookingArea: {
+    type: String,
+    trim: true
+  },
+  plotFacing: {
+    type: String,
+    trim: true
+  },
+  rate: {
+    type: Number,
+    default: 0
+  },
+  plcAmount: {
+    type: Number,
+    default: 0
+  },
+  developmentCharge: {
+    type: Number,
+    default: 0
+  },
+  paidAmount: {
+    type: Number,
+    default: 0
+  },
+  totalPaid: {
+    type: Number,
+    default: 0
+  },
+  discount: {
+    type: Number,
+    default: 0
+  },
+  balanceAmount: {
+    type: Number,
+    default: 0
+  },
+  paymentMode: {
+    type: String,
+    enum: ['Cash', 'Cheque', 'RTGS', 'NEFT', 'Online', 'Card'],
+    default: 'Cash'
+  },
+  instrumentNo: {
+    type: String,
+    trim: true
+  },
+  instrumentDate: {
+    type: Date
+  },
+  bankName: {
+    type: String,
+    trim: true
+  },
+  depositDate: {
+    type: Date
+  },
+  remark: {
+    type: String,
+    trim: true
+  },
+  bankAccountName: {
+    type: String,
+    default: 'State Bank Of India'
+  },
+  bankAccountNumber: {
+    type: String,
+    default: '44294171198'
+  },
+  bankIFSC: {
+    type: String,
+    default: 'SBIN0011643'
+  },
+  bankBranchAddress: {
+    type: String,
+    default: 'Gomti Nagar, Lucknow, UP'
+  },
 
   project: {
     type: mongoose.Schema.Types.ObjectId,

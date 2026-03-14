@@ -179,13 +179,15 @@ class AssociateController {
   // Update associate profile (Associate only)
   async updateAssociateProfile(req, res) {
     try {
-      const result = await associateService.updateAssociateProfile(req.user.id, req.body);
+      console.log('Update Associate Profile Triggered');
+      const result = await associateService.updateAssociateProfile(req.user.id, req.body, req.files);
       res.json(result);
     } catch (error) {
-      console.error('Update associate profile error:', error);
+      console.error('CRITICAL: Update associate profile error:', error);
       res.status(500).json({
         success: false,
-        message: 'Server error'
+        message: 'Server error',
+        error: error.message
       });
     }
   }

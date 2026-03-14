@@ -26,9 +26,83 @@ class AssociateService {
 
       const total = await User.countDocuments(query);
 
+      // If sponsorId is provided, we are viewing "My Network" - add financial stats
+      let enhancedData = associates;
+      if (sponsorId) {
+        const Commission = require('../models/Commission');
+        const Payment = require('../models/Payment');
+
+        // 1. Get all commissions earned by the Sponsor (the viewer)
+        const sponsorCommissions = await Commission.find({ associate: sponsorId, level: { $gt: 1 } })
+          .populate({
+            path: 'payment',
+            select: 'associate amount'
+          });
+
+        // 2. Identify which direct referral each payment originated from
+        // We'll cache the "branch owner" (direct child of Sponsor) for each associate in the subtree
+        const branchCache = {};
+        const getBranchOwner = async (targetId) => {
+          if (branchCache[targetId]) return branchCache[targetId];
+          
+          let currentId = targetId;
+          let lastId = null;
+          
+          while (currentId) {
+            if (currentId.toString() === sponsorId.toString()) {
+              branchCache[targetId] = lastId;
+              return lastId;
+            }
+            const u = await User.findById(currentId).select('sponsor');
+            if (!u || !u.sponsor) break;
+            lastId = currentId;
+            currentId = u.sponsor;
+          }
+          branchCache[targetId] = null;
+          return null;
+        };
+
+        // 3. Process each associate in the list to calculate their stats
+        enhancedData = await Promise.all(associates.map(async (assoc) => {
+          const assocObj = assoc.toObject();
+          const assocIdStr = assoc._id.toString();
+
+          // A. Calculate what they earned (their own self + network earnings)
+          const theirComms = await Commission.find({ associate: assoc._id });
+          assocObj.totalEarnings = theirComms.reduce((sum, c) => sum + c.commissionAmount, 0);
+
+          // B. Calculate what the Sponsor earned FROM this specific branch
+          // Filter sponsor commissions where the branch owner matches this associate
+          let myEarningsFromThisBranch = 0;
+          let branchSales = 0;
+
+          for (const comm of sponsorCommissions) {
+            const paymentAssociateId = comm.payment?.associate;
+            if (paymentAssociateId) {
+              const ownerId = await getBranchOwner(paymentAssociateId);
+              if (ownerId && ownerId.toString() === assocIdStr) {
+                myEarningsFromThisBranch += comm.commissionAmount;
+                // Since there might be multiple commissions on same payment, we only count sale once if we tracks unique payments
+                // But simplified: sum commissions
+              }
+            }
+          }
+          
+          assocObj.myEarningsFromReferral = myEarningsFromThisBranch;
+          
+          // C. Calculate their Total Network Sales (Team Business)
+          // Total amount of payments where the associate is this R or anyone in their subtree
+          // This is already tracked in user.totalSales? Let's check User model.
+          // Yes, User model has totalSales which is updated for all ancestors.
+          assocObj.networkSales = assoc.totalSales || 0;
+
+          return assocObj;
+        }));
+      }
+
       return {
         success: true,
-        data: associates,
+        data: enhancedData,
         pagination: {
           current: parseInt(page),
           pages: Math.ceil(total / limit),
@@ -274,16 +348,62 @@ class AssociateService {
   }
 
   // Update associate profile
-  async updateAssociateProfile(associateId, updateData) {
+  async updateAssociateProfile(associateId, updateData, files) {
     try {
-      // Remove sensitive fields
-      delete updateData.password;
-      delete updateData.role;
-      delete updateData.permissions;
+      console.log('Update profile requested for ID:', associateId);
+      console.log('Update data:', updateData);
+      
+      const allowedFields = ['name', 'phone', 'address', 'bio', 'panNumber', 'aadhaarNumber'];
+      const updates = {};
+      
+      Object.keys(updateData).forEach(key => {
+        if (allowedFields.includes(key) && updateData[key] !== 'undefined' && updateData[key] !== 'null') {
+          updates[key] = updateData[key];
+        }
+      });
+
+      // Handle nested bankDetails
+      if (updateData.bankDetails) {
+        try {
+          const bankDetails = typeof updateData.bankDetails === 'string' 
+            ? JSON.parse(updateData.bankDetails) 
+            : updateData.bankDetails;
+          
+          if (bankDetails && typeof bankDetails === 'object') {
+            Object.keys(bankDetails).forEach(key => {
+              if (bankDetails[key] !== undefined && bankDetails[key] !== null) {
+                updates[`bankDetails.${key}`] = bankDetails[key];
+              }
+            });
+          }
+        } catch (parseError) {
+          console.error('Error parsing bankDetails:', parseError);
+        }
+      }
+
+      // Handle document file uploads
+      if (files) {
+        if (files.panCard && files.panCard[0]) {
+          updates['documents.panCard'] = files.panCard[0].path;
+        }
+        if (files.aadhaarCard && files.aadhaarCard[0]) {
+          updates['documents.aadhaarCard'] = files.aadhaarCard[0].path;
+        }
+      }
+
+      console.log('Final updates object:', updates);
+
+      if (Object.keys(updates).length === 0) {
+        return {
+          success: true,
+          message: 'No changes to update',
+          data: await User.findById(associateId).select('-password')
+        };
+      }
 
       const updatedAssociate = await User.findByIdAndUpdate(
         associateId,
-        updateData,
+        { $set: updates },
         { new: true, runValidators: true }
       ).select('-password');
 

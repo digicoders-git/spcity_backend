@@ -60,6 +60,13 @@ class DashboardService {
         const withdrawals = await Withdrawal.find({ associate: associateId });
         
         const totalEarned = commissions.reduce((sum, c) => sum + c.commissionAmount, 0);
+        const selfEarnings = commissions
+          .filter(c => c.level === 1)
+          .reduce((sum, c) => sum + c.commissionAmount, 0);
+        const referralEarnings = commissions
+          .filter(c => c.level > 1)
+          .reduce((sum, c) => sum + c.commissionAmount, 0);
+
         const totalWithdrawn = withdrawals
           .filter(w => w.status === 'Completed')
           .reduce((sum, w) => sum + w.amount, 0);
@@ -92,6 +99,8 @@ class DashboardService {
           totalPayments,
           totalSiteVisits,
           totalCommission: totalEarned,
+          selfEarnings,
+          referralEarnings,
           availableBalance,
           totalWithdrawn,
           pendingWithdrawal,

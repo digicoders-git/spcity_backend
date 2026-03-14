@@ -84,9 +84,14 @@ const invoiceLimiter = rateLimit({
   max: 300
 });
 
+const path = require('path');
+
 /* ================= BODY PARSER ================= */
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+/* ================= STATIC FILES ================= */
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 /* ================= ROUTES ================= */
 app.use('/api/auth', authRoutes);

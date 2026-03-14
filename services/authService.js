@@ -135,9 +135,9 @@ class AuthService {
   }
 
   // Update user profile
-  async updateUserProfile(userId, updateData) {
+  async updateUserProfile(userId, updateData, files) {
     try {
-      const allowedFields = ['name', 'phone', 'address', 'bio', 'emailNotifications', 'smsNotifications'];
+      const allowedFields = ['name', 'phone', 'address', 'bio', 'emailNotifications', 'smsNotifications', 'panNumber', 'aadhaarNumber'];
       const updates = {};
       
       Object.keys(updateData).forEach(key => {
@@ -145,6 +145,34 @@ class AuthService {
           updates[key] = updateData[key];
         }
       });
+
+      // Handle nested bankDetails
+      if (updateData.bankDetails) {
+        const bankDetails = typeof updateData.bankDetails === 'string' 
+          ? JSON.parse(updateData.bankDetails) 
+          : updateData.bankDetails;
+        
+        Object.keys(bankDetails).forEach(key => {
+          updates[`bankDetails.${key}`] = bankDetails[key];
+        });
+      } else {
+        // Handle individual bank fields if sent directly
+        ['accountHolderName', 'accountNumber', 'bankName', 'ifscCode', 'branchName'].forEach(field => {
+          if (updateData[field]) {
+            updates[`bankDetails.${field}`] = updateData[field];
+          }
+        });
+      }
+
+      // Handle document file uploads
+      if (files) {
+        if (files.panCard) {
+          updates['documents.panCard'] = files.panCard[0].path;
+        }
+        if (files.aadhaarCard) {
+          updates['documents.aadhaarCard'] = files.aadhaarCard[0].path;
+        }
+      }
 
       const user = await User.findByIdAndUpdate(
         userId,

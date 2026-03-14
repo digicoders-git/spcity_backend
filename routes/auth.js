@@ -2,6 +2,7 @@ const express = require('express');
 const { body } = require('express-validator');
 const authController = require('../controllers/authController');
 const { auth } = require('../middleware/auth');
+const upload = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -28,6 +29,10 @@ router.post('/register', [
 // @access  Private
 router.put('/profile', [
   auth,
+  upload.fields([
+    { name: 'panCard', maxCount: 1 },
+    { name: 'aadhaarCard', maxCount: 1 }
+  ]),
   body('name').optional().notEmpty().withMessage('Name cannot be empty'),
   body('phone').optional().notEmpty().withMessage('Phone cannot be empty'),
   body('address').optional().notEmpty().withMessage('Address cannot be empty')

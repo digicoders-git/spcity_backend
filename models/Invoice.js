@@ -25,6 +25,11 @@ const invoiceSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  relation: {
+    type: String,
+    enum: ['S/O', 'W/O', 'D/O'],
+    default: 'S/O'
+  },
   fatherName: {
     type: String,
     trim: true

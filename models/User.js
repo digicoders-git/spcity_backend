@@ -93,6 +93,19 @@ const userSchema = new mongoose.Schema({
     min: 0,
     max: 100,
     default: 0
+  },
+  bankDetails: {
+    accountHolderName: { type: String, trim: true },
+    accountNumber: { type: String, trim: true },
+    bankName: { type: String, trim: true },
+    ifscCode: { type: String, trim: true },
+    branchName: { type: String, trim: true }
+  },
+  panNumber: { type: String, trim: true },
+  aadhaarNumber: { type: String, trim: true },
+  documents: {
+    panCard: { type: String },
+    aadhaarCard: { type: String }
   }
 }, {
   timestamps: true

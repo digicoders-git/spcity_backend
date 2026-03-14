@@ -50,7 +50,7 @@ class CommissionService {
         await rewardService.processAutomatedRewards(user._id);
 
         // Move up
-        currentId = user.createdBy;
+        currentId = user.sponsor;
       }
     } catch (error) {
       console.error('Update Rank Error:', error);
@@ -119,7 +119,7 @@ class CommissionService {
           alreadyDistributedRate = associateRate; // Update distributed rate
         }
 
-        currentAssociateId = currentAssociate.createdBy;
+        currentAssociateId = currentAssociate.sponsor;
         level++;
       }
 
@@ -184,6 +184,13 @@ class CommissionService {
       const withdrawals = await Withdrawal.find({ associate: associateId });
       
       const totalEarned = commissions.reduce((sum, c) => sum + c.commissionAmount, 0);
+      const selfEarnings = commissions
+        .filter(c => c.level === 1)
+        .reduce((sum, c) => sum + c.commissionAmount, 0);
+      const referralEarnings = commissions
+        .filter(c => c.level > 1)
+        .reduce((sum, c) => sum + c.commissionAmount, 0);
+
       const totalWithdrawn = withdrawals
         .filter(w => w.status === 'Completed')
         .reduce((sum, w) => sum + w.amount, 0);
@@ -197,6 +204,8 @@ class CommissionService {
         data: {
           totalCommissions: commissions.length,
           totalEarned,
+          selfEarnings,
+          referralEarnings,
           totalWithdrawn,
           pendingWithdrawal,
           availableBalance,

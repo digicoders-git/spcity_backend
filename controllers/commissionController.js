@@ -259,6 +259,56 @@ class CommissionController {
       res.status(500).json({ success: false, message: error.message });
     }
   }
+
+  // Delete a specific commission (Admin only)
+  async deleteCommission(req, res) {
+    try {
+      const commission = await Commission.findByIdAndDelete(req.params.id);
+      if (!commission) {
+        return res.status(404).json({ success: false, message: 'Commission record not found' });
+      }
+      res.json({ success: true, message: 'Commission record deleted successfully' });
+    } catch (error) {
+      console.error('Delete commission error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  // Delete a specific withdrawal record (Admin only)
+  async deleteWithdrawal(req, res) {
+    try {
+      const withdrawal = await Withdrawal.findByIdAndDelete(req.params.id);
+      if (!withdrawal) {
+        return res.status(404).json({ success: false, message: 'Withdrawal record not found' });
+      }
+      res.json({ success: true, message: 'Withdrawal record deleted successfully' });
+    } catch (error) {
+      console.error('Delete withdrawal error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  // Clear all commission records (Admin only)
+  async clearAllCommissions(req, res) {
+    try {
+      await Commission.deleteMany({});
+      res.json({ success: true, message: 'All commission records cleared successfully' });
+    } catch (error) {
+      console.error('Clear all commissions error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  // Clear all withdrawal records (Admin only)
+  async clearAllWithdrawals(req, res) {
+    try {
+      await Withdrawal.deleteMany({});
+      res.json({ success: true, message: 'All withdrawal records cleared successfully' });
+    } catch (error) {
+      console.error('Clear all withdrawals error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
 }
 
 module.exports = new CommissionController();

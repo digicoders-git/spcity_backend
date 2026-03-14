@@ -33,6 +33,18 @@ router.put('/admin/withdrawals/:id', auth, adminAuth, commissionController.proce
 // Generate commission from payment
 router.post('/generate/:paymentId', auth, commissionController.generateCommission);
 
+// Clear all commissions (Admin only)
+router.delete('/admin/clear-all', auth, adminAuth, commissionController.clearAllCommissions);
+
+// Clear all withdrawals (Admin only)
+router.delete('/admin/withdrawals/clear-all/bulk', auth, adminAuth, commissionController.clearAllWithdrawals);
+
+// Delete commission record (Admin only)
+router.delete('/admin/:id', auth, adminAuth, commissionController.deleteCommission);
+
+// Delete withdrawal record (Admin only)
+router.delete('/admin/withdrawals/:id', auth, adminAuth, commissionController.deleteWithdrawal);
+
 // Approve project completion (Admin only)
 router.put('/approve-project/:projectId', auth, adminAuth, async (req, res) => {
   try {

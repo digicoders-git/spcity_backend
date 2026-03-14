@@ -89,7 +89,7 @@ class AuthController {
         });
       }
 
-      const result = await authService.updateUserProfile(req.user.id, req.body);
+      const result = await authService.updateUserProfile(req.user.id, req.body, req.files);
       
       if (!result.success) {
         return res.status(400).json(result);

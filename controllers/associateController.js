@@ -76,6 +76,16 @@ class AssociateController {
     }
   }
 
+  // Get direct downline of an associate
+  async getDownline(req, res) {
+    try {
+      const result = await associateService.getDirectDownline(req.params.id);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ success: false, message: 'Server error' });
+    }
+  }
+
   // Update associate (Admin only)
   async updateAssociate(req, res) {
     try {

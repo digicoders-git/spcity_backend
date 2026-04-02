@@ -35,6 +35,9 @@ router.put('/profile', auth, (req, res, next) => {
   });
 }, associateController.updateAssociateProfile);
 
+// Get direct downline of a specific associate
+router.get('/:id/downline', auth, associateController.getDownline);
+
 router.put('/:id', [
   auth,
   body('name').optional().notEmpty().withMessage('Name cannot be empty'),

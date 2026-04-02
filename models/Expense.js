@@ -41,6 +41,17 @@ const expenseSchema = new mongoose.Schema({
   description: {
     type: String
   },
+  vehicleDetails: {
+    vehicleType: { type: String, trim: true },      // Car, Bike, Auto, Bus etc.
+    vehicleNumber: { type: String, trim: true },     // e.g. UP32 AB 1234
+    driverName: { type: String, trim: true },        // Driver ka naam
+    fromLocation: { type: String, trim: true },      // Kahan se
+    toLocation: { type: String, trim: true },        // Kahan tak
+    kmStart: { type: Number },                       // Starting KM reading
+    kmEnd: { type: Number },                         // Ending KM reading
+    fuelType: { type: String, trim: true },          // Petrol, Diesel, CNG
+    fuelAmount: { type: Number }                     // Fuel cost
+  },
   date: {
     type: Date,
     default: Date.now

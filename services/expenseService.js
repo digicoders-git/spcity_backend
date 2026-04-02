@@ -17,7 +17,7 @@ class ExpenseService {
 
   async getAllExpenses(filters = {}) {
     try {
-      const { category, associate, lead, startDate, endDate, status } = filters;
+      const { category, associate, lead, startDate, endDate, status, page = 1, limit = 10 } = filters;
       let query = {};
 
       if (category) query.category = category;
@@ -36,9 +36,21 @@ class ExpenseService {
         .populate('lead', 'name phone')
         .populate('project', 'name')
         .populate('createdBy', 'name')
-        .sort({ date: -1 });
+        .sort({ date: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit);
 
-      return { success: true, data: expenses };
+      const total = await Expense.countDocuments(query);
+
+      return { 
+        success: true, 
+        data: expenses,
+        pagination: {
+          current: parseInt(page),
+          pages: Math.ceil(total / (limit || 10)),
+          total
+        }
+      };
     } catch (error) {
       throw error;
     }

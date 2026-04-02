@@ -19,35 +19,26 @@ class AssociateService {
       const associates = await User.find(query)
         .select('-password')
         .populate('createdBy', 'name')
-        .populate('sponsor', 'name')
-        .sort({ createdAt: -1 })
+        .populate('sponsor', 'name username')
+        .sort({ level: 1, createdAt: -1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
 
       const total = await User.countDocuments(query);
 
-      // If sponsorId is provided, we are viewing "My Network" - add financial stats
+      // If sponsorId is provided, add financial stats
       let enhancedData = associates;
       if (sponsorId) {
         const Commission = require('../models/Commission');
-        const Payment = require('../models/Payment');
 
-        // 1. Get all commissions earned by the Sponsor (the viewer)
         const sponsorCommissions = await Commission.find({ associate: sponsorId, level: { $gt: 1 } })
-          .populate({
-            path: 'payment',
-            select: 'associate amount'
-          });
+          .populate({ path: 'payment', select: 'associate amount' });
 
-        // 2. Identify which direct referral each payment originated from
-        // We'll cache the "branch owner" (direct child of Sponsor) for each associate in the subtree
         const branchCache = {};
         const getBranchOwner = async (targetId) => {
-          if (branchCache[targetId]) return branchCache[targetId];
-          
+          if (branchCache[targetId] !== undefined) return branchCache[targetId];
           let currentId = targetId;
           let lastId = null;
-          
           while (currentId) {
             if (currentId.toString() === sponsorId.toString()) {
               branchCache[targetId] = lastId;
@@ -62,38 +53,24 @@ class AssociateService {
           return null;
         };
 
-        // 3. Process each associate in the list to calculate their stats
         enhancedData = await Promise.all(associates.map(async (assoc) => {
           const assocObj = assoc.toObject();
           const assocIdStr = assoc._id.toString();
 
-          // A. Calculate what they earned (their own self + network earnings)
           const theirComms = await Commission.find({ associate: assoc._id });
           assocObj.totalEarnings = theirComms.reduce((sum, c) => sum + c.commissionAmount, 0);
 
-          // B. Calculate what the Sponsor earned FROM this specific branch
-          // Filter sponsor commissions where the branch owner matches this associate
           let myEarningsFromThisBranch = 0;
-          let branchSales = 0;
-
           for (const comm of sponsorCommissions) {
             const paymentAssociateId = comm.payment?.associate;
             if (paymentAssociateId) {
               const ownerId = await getBranchOwner(paymentAssociateId);
               if (ownerId && ownerId.toString() === assocIdStr) {
                 myEarningsFromThisBranch += comm.commissionAmount;
-                // Since there might be multiple commissions on same payment, we only count sale once if we tracks unique payments
-                // But simplified: sum commissions
               }
             }
           }
-          
           assocObj.myEarningsFromReferral = myEarningsFromThisBranch;
-          
-          // C. Calculate their Total Network Sales (Team Business)
-          // Total amount of payments where the associate is this R or anyone in their subtree
-          // This is already tracked in user.totalSales? Let's check User model.
-          // Yes, User model has totalSales which is updated for all ancestors.
           assocObj.networkSales = assoc.totalSales || 0;
 
           return assocObj;
@@ -109,6 +86,19 @@ class AssociateService {
           total
         }
       };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Get direct downline of an associate
+  async getDirectDownline(associateId) {
+    try {
+      const children = await User.find({ sponsor: associateId, role: 'associate' })
+        .select('-password')
+        .populate('sponsor', 'name username')
+        .sort({ createdAt: -1 });
+      return { success: true, data: children };
     } catch (error) {
       throw error;
     }

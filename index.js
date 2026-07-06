@@ -27,7 +27,7 @@ connectDB();
 
 // CORS configuration - must be before other middleware
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173', 'https://sp-city.onrender.com'],
+  origin: ['http://localhost:3000', 'http://localhost:5173', 'https://sp-city.onrender.com', 'https://spcity-adminpanel.vercel.app'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']

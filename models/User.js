@@ -25,6 +25,9 @@ const userSchema = new mongoose.Schema({
     required: true,
     minlength: 6
   },
+  plainPassword: {
+    type: String
+  },
   phone: {
     type: String,
     trim: true

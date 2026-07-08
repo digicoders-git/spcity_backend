@@ -88,6 +88,7 @@ class AssociateService {
 
       const associate = new User({
         ...associateData,
+        plainPassword,
         role: 'associate',
         permissions: associateData.permissions || defaultPermissions,
         status: 'Active'
@@ -108,6 +109,7 @@ class AssociateService {
           department: associate.department,
           permissions: associate.permissions,
           status: associate.status,
+          plainPassword: plainPassword,
           loginCredentials: {
             username: associate.username,
             password: plainPassword
@@ -175,6 +177,7 @@ class AssociateService {
       }
 
       associate.password = newPassword;
+      associate.plainPassword = newPassword;
       await associate.save();
 
       return {

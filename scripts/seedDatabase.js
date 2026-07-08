@@ -40,6 +40,7 @@ const seedUsers = async () => {
       email: 'rajesh@spcity.com',
       username: 'rajesh',
       password: 'rajesh123',
+      plainPassword: 'rajesh123',
       phone: '+91 9876543210',
       role: 'associate',
       department: 'Sales',
